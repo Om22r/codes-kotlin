@@ -3,7 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-import kotlin.native.internal.reflect.*
 import kotlin.native.internal.*
 import kotlin.test.*
 
@@ -55,7 +54,7 @@ fun `big class with mixed values`() {
             4, BoxInt(5), BoxA(a6), null, null
     )
     x.r = ia2
-    val fields = x.getObjectReferenceFields()
+    val fields = x.collectReferenceFieldValues()
     assertEquals(12, fields.size)
     // not using assertContains because of ===
     assertTrue(fields.any { it === lst }, "Should contain list $lst")
@@ -73,40 +72,40 @@ fun `big class with mixed values`() {
 
 @Test
 fun `call on primitive`() {
-    assertEquals(1.getObjectReferenceFields(), emptyList<Any>())
-    assertEquals(123456.getObjectReferenceFields(), emptyList<Any>())
+    assertEquals(1.collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals(123456.collectReferenceFieldValues(), emptyList<Any>())
 }
 
 @Test
 fun `call on value over primitive class`() {
-    assertEquals(BoxInt(1).getObjectReferenceFields(), emptyList<Any>())
-    assertEquals(BoxBoxInt(BoxInt(1)).getObjectReferenceFields(), emptyList<Any>())
+    assertEquals(BoxInt(1).collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals(BoxBoxInt(BoxInt(1)).collectReferenceFieldValues(), emptyList<Any>())
 }
 
 @Test
 fun `call on value class`() {
     val a1 = A(1)
-    assertEquals(BoxA(a1).getObjectReferenceFields(), listOf(a1))
-    assertEquals(BoxBoxA(BoxA(a1)).getObjectReferenceFields(), listOf(a1))
+    assertEquals(BoxA(a1).collectReferenceFieldValues(), listOf(a1))
+    assertEquals(BoxBoxA(BoxA(a1)).collectReferenceFieldValues(), listOf(a1))
 }
 
 @Test
 fun `call on String`() {
-    assertEquals("1234".getObjectReferenceFields(), emptyList<Any>())
-    assertEquals("".getObjectReferenceFields(), emptyList<Any>())
+    assertEquals("1234".collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals("".collectReferenceFieldValues(), emptyList<Any>())
 }
 
 @Test
 fun `call on primitive array`() {
-    assertEquals(intArrayOf(1, 2, 3).getObjectReferenceFields(), emptyList<Any>())
-    assertEquals(intArrayOf().getObjectReferenceFields(), emptyList<Any>())
+    assertEquals(intArrayOf(1, 2, 3).collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals(intArrayOf().collectReferenceFieldValues(), emptyList<Any>())
 }
 
 @Test
 fun `call on array`() {
-    assertEquals(arrayOf(1, 2, 3).getObjectReferenceFields(), listOf<Any>(1, 2, 3))
-    assertEquals(arrayOf(null, "10", null, 3).getObjectReferenceFields(), listOf<Any>("10", 3))
-    assertEquals(arrayOf<Any>().getObjectReferenceFields(), emptyList<Any>())
-    assertEquals(emptyArray<Any>().getObjectReferenceFields(), emptyList<Any>())
-    assertEquals(emptyArray<Any?>().getObjectReferenceFields(), emptyList<Any>())
+    assertEquals(arrayOf(1, 2, 3).collectReferenceFieldValues(), listOf<Any>(1, 2, 3))
+    assertEquals(arrayOf(null, "10", null, 3).collectReferenceFieldValues(), listOf<Any>("10", 3))
+    assertEquals(arrayOf<Any>().collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals(emptyArray<Any>().collectReferenceFieldValues(), emptyList<Any>())
+    assertEquals(emptyArray<Any?>().collectReferenceFieldValues(), emptyList<Any>())
 }
