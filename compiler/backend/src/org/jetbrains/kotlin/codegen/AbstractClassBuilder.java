@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.codegen.inline.FileMapping;
 import org.jetbrains.kotlin.codegen.inline.SMAPBuilder;
 import org.jetbrains.kotlin.codegen.inline.SourceMapper;
 import org.jetbrains.kotlin.codegen.serialization.JvmSerializationBindings;
+import org.jetbrains.kotlin.load.java.JvmAnnotationNames;
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.*;
 
@@ -116,6 +117,9 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     @Override
     public void done() {
         getVisitor().visitSource(sourceName, debugInfo);
+        if (debugInfo != null && debugInfo.length() < 65535) {
+            getVisitor().visitAnnotation(JvmAnnotationNames.SOURCE_DEBUG_EXTENSION_DESC, false).visit("value", debugInfo);
+        }
         getVisitor().visitEnd();
     }
 
