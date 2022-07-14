@@ -12,6 +12,13 @@ plugins {
     id("com.gradle.plugin-publish")
 }
 
+// Enable signing for publications into Gradle Plugin Portal
+if (!version.toString().contains("-SNAPSHOT") &&
+    project.gradle.startParameter.taskNames.contains("publishPlugins")
+) {
+    extensions.extraProperties["signingRequired"] = true
+}
+
 configureCommonPublicationSettingsForGradle()
 configureKotlinCompileTasksGradleCompatibility()
 extensions.extraProperties["kotlin.stdlib.default.dependency"] = "false"

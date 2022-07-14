@@ -141,7 +141,12 @@ fun Project.configureDefaultPublishing() {
     }
 
     val signingRequired = project.providers.gradleProperty("signingRequired").forUseAtConfigurationTime().orNull?.toBoolean()
-        ?: project.providers.gradleProperty("isSonatypeRelease").forUseAtConfigurationTime().orNull?.toBoolean() ?: false
+        ?: project.providers.gradleProperty("isSonatypeRelease").forUseAtConfigurationTime().orNull?.toBoolean()
+        ?: if (project.extensions.extraProperties.has("signingRequired")) {
+            project.extensions.extraProperties["signingRequired"] as Boolean
+        } else {
+            false
+        }
 
     if (signingRequired) {
         apply<SigningPlugin>()
