@@ -103,14 +103,7 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     private fun buildNullableArgToString(argument: IrExpression): IrExpression {
         return if (argument.type.isNullable()) {
             builder.irBlock {
-                val argumentValue = createTempValIfNontrivial(argument)
-                +irIfThenElse(
-                        context.irBuiltIns.stringType,
-                        condition = irEqeqeq(argumentValue, irNull()),
-                        thenPart = irString("null"),
-                        elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
-                        origin = null
-                )
+                nullableArgToStringType(argument, context.irBuiltIns.stringType, irString("null"))
             }
         } else buildNonNullableArgToString(argument)
     }
@@ -119,15 +112,19 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     // "if(argument==null) null else argument.toString()", that is similar to "argument?.toString()"
     private fun buildNullableArgToNullableString(argument: IrExpression): IrExpression {
         return builder.irBlock {
-            val argumentValue = createTempValIfNontrivial(argument)
-            +irIfThenElse(
-                    context.irBuiltIns.stringType.makeNullable(),
-                    condition = irEqeqeq(argumentValue, irNull()),
-                    thenPart = irNull(),
-                    elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
-                    origin = null
-            )
+            nullableArgToStringType(argument, context.irBuiltIns.stringType.makeNullable(), irNull())
         }
+    }
+
+    private fun IrBlockBuilder.nullableArgToStringType(argument: IrExpression, stringType: IrType, thenPart: IrExpression) {
+        val argumentValue = createTempValIfPossibleSideEffects(argument)
+        +irIfThenElse(
+                stringType,
+                condition = irEqeqeq(argumentValue, irNull()),
+                thenPart = thenPart,
+                elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
+                origin = null
+        )
     }
 
     // Builds snippet of type String
@@ -143,10 +140,10 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     }
 
     /**
-     * If [expression] is non-trivial, this function creates a temporary local variable for that expression and returns [IrGetValue] for it.
-     * Otherwise, it returns original trivial [expression]. This helps reduce excessive unnecessary local variable usage.
+     * If [expression] may have side effects, this function creates a temporary local variable for that expression and returns [IrGetValue] for it.
+     * Otherwise, it returns original sideeffectsless [expression]. This helps reduce excessive unnecessary local variable usage.
      */
-    private fun IrBlockBuilder.createTempValIfNontrivial(expression: IrExpression): IrExpression =
+    private fun IrBlockBuilder.createTempValIfPossibleSideEffects(expression: IrExpression): IrExpression =
             if (expression.isTrivial())
                 expression
             else irGet(createTmpVariable(expression))
