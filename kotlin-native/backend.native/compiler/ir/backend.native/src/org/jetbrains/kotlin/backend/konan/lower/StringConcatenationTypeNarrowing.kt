@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.functions
 import org.jetbrains.kotlin.ir.util.isTrivial
@@ -53,7 +52,7 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     }
 
     // null happens in :kotlin-native:endorsedLibraries:kotlinx.cli:macos_arm64KotlinxCliCache
-    private val plusImplFunction = string.functions.singleOrNull {// external fun String.plusImpl(String)
+    private val plusImplFunction = string.functions.singleOrNull { // external fun String.plusImpl(String)
         it.name == namePlusImpl &&
                 it.valueParameters.size == 1 &&
                 it.valueParameters.single().type.isString()
@@ -98,12 +97,6 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
                 dispatchReceiver = receiver
             }
 
-    private fun buildEQNull(arg0: IrExpression) =
-            builder.irCall(context.irBuiltIns.eqeqSymbol, context.irBuiltIns.booleanType, valueArgumentsCount = 2, typeArgumentsCount = 0).apply {
-                putValueArgument(0, arg0)
-                putValueArgument(1, IrConstImpl.constNull(startOffset, endOffset, context.irBuiltIns.nothingNType))
-            }
-
     // Builds snippet of type String
     // - "if(argument==null) "null" else argument.toString()", if argument's type is nullable. Note: fortunately, all "null" string structures are unified
     // - "argument.toString()", otherwise
@@ -113,8 +106,8 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
                 val argumentValue = createTempValIfNontrivial(argument)
                 +irIfThenElse(
                         context.irBuiltIns.stringType,
-                        condition = buildEQNull(argumentValue),
-                        thenPart = IrConstImpl.string(startOffset, endOffset, context.irBuiltIns.stringType, "null"),
+                        condition = irEqeqeq(argumentValue, irNull()),
+                        thenPart = irString("null"),
                         elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
                         origin = null
                 )
@@ -129,8 +122,8 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
             val argumentValue = createTempValIfNontrivial(argument)
             +irIfThenElse(
                     context.irBuiltIns.stringType.makeNullable(),
-                    condition = buildEQNull(argumentValue),
-                    thenPart = IrConstImpl.constNull(startOffset, endOffset, context.irBuiltIns.nothingNType),
+                    condition = irEqeqeq(argumentValue, irNull()),
+                    thenPart = irNull(),
                     elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
                     origin = null
             )
