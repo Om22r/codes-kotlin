@@ -11,11 +11,11 @@ import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.functions
-import org.jetbrains.kotlin.ir.util.isTrivial
 import org.jetbrains.kotlin.ir.util.shallowCopy
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
@@ -97,9 +97,10 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
                 dispatchReceiver = receiver
             }
 
-    // Builds snippet of type String
-    // - "if(argument==null) "null" else argument.toString()", if argument's type is nullable. Note: fortunately, all "null" string structures are unified
-    // - "argument.toString()", otherwise
+    /** Builds snippet of type String
+     * - "if(argument==null) "null" else argument.toString()", if argument's type is nullable. Note: fortunately, all "null" string structures are unified
+     * - "argument.toString()", otherwise
+     */
     private fun buildNullableArgToString(argument: IrExpression): IrExpression {
         return if (argument.type.isNullable()) {
             builder.irBlock {
@@ -108,8 +109,9 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
         } else buildNonNullableArgToString(argument)
     }
 
-    // Builds snippet of type String?
-    // "if(argument==null) null else argument.toString()", that is similar to "argument?.toString()"
+    /** Builds snippet of type String?
+     * "if(argument==null) null else argument.toString()", that is similar to "argument?.toString()"
+     */
     private fun buildNullableArgToNullableString(argument: IrExpression): IrExpression {
         return builder.irBlock {
             nullableArgToStringType(argument, context.irBuiltIns.stringType.makeNullable(), irNull())
@@ -117,20 +119,21 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     }
 
     private fun IrBlockBuilder.nullableArgToStringType(argument: IrExpression, stringType: IrType, thenPart: IrExpression) {
-        val argumentValue = createTempValIfPossibleSideEffects(argument)
+        val (firstExpression, secondExpression) = twoExpressionsForSubsequentUsages(argument)
         +irIfThenElse(
                 stringType,
-                condition = irEqeqeq(argumentValue, irNull()),
+                condition = irEqeqeq(firstExpression, irNull()),
                 thenPart = thenPart,
-                elsePart = buildNonNullableArgToString(argumentValue.shallowCopy()),
+                elsePart = buildNonNullableArgToString(secondExpression),
                 origin = null
         )
     }
 
-    // Builds snippet of type String
-    // - "argument", in case argument's type is String, since String.toString() is no-op
-    // - "argument", in case argument's type is String?, due to smart-cast and no-op
-    // - "argument.toString()", otherwise
+    /** Builds snippet of type String
+     * - "argument", in case argument's type is String, since String.toString() is no-op
+     * - "argument", in case argument's type is String?, due to smart-cast and no-op
+     * - "argument.toString()", otherwise
+     */
     private fun buildNonNullableArgToString(argument: IrExpression): IrExpression {
         return if (argument.type.isString() || argument.type.isNullableString())
             argument
@@ -140,11 +143,14 @@ internal class StringConcatenationTypeNarrowing(val context: Context) : FileLowe
     }
 
     /**
-     * If [expression] may have side effects, this function creates a temporary local variable for that expression and returns [IrGetValue] for it.
-     * Otherwise, it returns original sideeffectsless [expression]. This helps reduce excessive unnecessary local variable usage.
+     * This function returns two expressions based on the parameter:
+     * - <original [expression] and its shallow copy>, should its second usage be idempotent and have runtime cost not greater than local val read.
+     *   This reduces excessive local variable usage without performance degradation.
+     * - <two [IrGetValue] nodes for newly-created temporary val, initialized with original expression>, otherwise.
      */
-    private fun IrBlockBuilder.createTempValIfPossibleSideEffects(expression: IrExpression): IrExpression =
-            if (expression.isTrivial())
-                expression
-            else irGet(createTmpVariable(expression))
+    private fun IrBlockBuilder.twoExpressionsForSubsequentUsages(expression: IrExpression): Pair<IrExpression, IrExpression> =
+            if (expression is IrConst<*> || expression is IrGetValue)
+                Pair(expression, expression.shallowCopy())
+            else
+                createTmpVariable(expression).let { Pair(irGet(it), irGet(it)) }
 }
