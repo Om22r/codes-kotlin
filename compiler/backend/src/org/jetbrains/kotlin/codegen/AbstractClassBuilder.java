@@ -115,9 +115,9 @@ public abstract class AbstractClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void done() {
+    public void done(boolean generateSmapCopyToAnnotation) {
         getVisitor().visitSource(sourceName, debugInfo);
-        if (debugInfo != null && debugInfo.length() < 65535) {
+        if (generateSmapCopyToAnnotation && debugInfo != null && debugInfo.length() < 65535) {
             getVisitor().visitAnnotation(JvmAnnotationNames.SOURCE_DEBUG_EXTENSION_DESC, false).visit("value", debugInfo);
         }
         getVisitor().visitEnd();
