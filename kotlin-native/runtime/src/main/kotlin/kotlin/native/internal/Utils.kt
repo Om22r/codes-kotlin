@@ -40,10 +40,11 @@ private external fun getObjectReferenceFieldByIndex(o: Any, index: Int): Any?
  *  - Synthetic fields (e.g. special fields for delegation) are included in the result.
  *  - There is no way to find which reference in the result corresponds to which field.
  *
- *  For `Array<T>` list of all its elements is returned.
+ *  For `Array<T>` list of all its non-null elements is returned.
+ *  For primitive arrays ([IntArray], [DoubleArray], [FloatArray], etc.) empty list is returned.
  */
 @InternalForKotlinNative
-fun Any.collectReferenceFieldValues() : List<Any> {
+public fun Any.collectReferenceFieldValues() : List<Any> {
     return when {
         this is Array<*> -> this.filterNotNull()
         else -> (0 until getObjectReferenceFieldsCount(this@collectReferenceFieldValues)).mapNotNull {
